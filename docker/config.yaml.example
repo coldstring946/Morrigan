@@ -1,0 +1,130 @@
+# BBC Radio Processor Configuration
+
+# Network Configuration
+network:
+  # NAS IP address
+  nas_ip: "192.168.1.100"
+  
+  # NAS mount point
+  nas_mount: "/mnt/nas"
+  
+  # Transcription service URL (Desktop PC)
+  transcription_service_url: "http://192.168.1.101:5000"
+  
+  # API port
+  api_port: 8000
+  
+  # Dashboard port
+  dashboard_port: 8501
+
+# Database Configuration
+database:
+  # Database type (sqlite or postgresql)
+  type: "sqlite"
+  
+  # Database path (directory for SQLite, server for PostgreSQL)
+  path: "/mnt/nas/database"
+  
+  # Database name
+  name: "bbc_radio.db"
+  
+  # PostgreSQL-specific settings (only used if type is postgresql)
+  host: "localhost"
+  port: 5432
+  user: "bbc_user"
+  password: "change_me"
+
+# Downloader Configuration
+downloader:
+  # Path to download audio files
+  download_path: "/mnt/nas/downloads"
+  
+  # get_iplayer options
+  get_iplayer_options:
+    # Output directory
+    output: "/mnt/nas/downloads"
+    
+    # Content type (radio, tv, or both)
+    type: "radio"
+    
+    # Include metadata
+    metadata: true
+    
+    # Include subtitles
+    subtitles: true
+    
+    # Download quality
+    quality: "best"
+    
+    # Force overwrite
+    force: false
+    
+    # Concurrent downloads
+    concurrent: 2
+  
+  # Channels to include (empty for all)
+  channels: 
+    - "radio4"
+    - "radio4extra"
+    - "radio3"
+    - "worldservice"
+  
+  # Categories to include (empty for all)
+  categories: []
+  
+  # Auto refresh interval in minutes (0 to disable)
+  auto_refresh_interval: 60
+  
+  # Max downloads per run (0 for unlimited)
+  max_downloads_per_run: 10
+
+# Transcription Configuration
+transcription:
+  # Path to input audio files
+  input_path: "/mnt/nas/downloads"
+  
+  # Path to output transcriptions
+  output_path: "/mnt/nas/processed"
+  
+  # Whisper model size (tiny, base, small, medium, large)
+  model: "medium"
+  
+  # Language (en, fr, etc., or null for auto-detection)
+  language: "en"
+  
+  # Device to use (cuda, cpu)
+  device: "cuda"
+  
+  # Batch size for transcription
+  batch_size: 16
+  
+  # Number of threads
+  threads: 4
+  
+  # Enable speaker diarization
+  diarize: true
+  
+  # Output formats (json, txt, srt)
+  formats:
+    - "json"
+    - "txt"
+  
+  # Auto process new downloads
+  auto_process: true
+
+# Logging Configuration
+logging:
+  # Log path
+  log_path: "/mnt/nas/logs"
+  
+  # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  level: "INFO"
+  
+  # Maximum log file size in MB
+  max_size_mb: 10
+  
+  # Number of backup files
+  backup_count: 5
+  
+  # Log to console
+  console: true
