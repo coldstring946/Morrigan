@@ -1,0 +1,198 @@
+# Contributing to BBC Radio Processor
+
+Thank you for your interest in contributing to the BBC Radio Processor project! This document provides guidelines and instructions for contributing.
+
+## Code of Conduct
+
+Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). We expect all contributors to adhere to these guidelines to ensure a positive and respectful community.
+
+## Getting Started
+
+### Setting Up Development Environment
+
+1. Fork the repository
+2. Clone your fork:
+   ```bash
+   git clone https://github.com/yourusername/bbc-radio-processor.git
+   cd bbc-radio-processor
+   ```
+3. Set up a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+4. Install development dependencies:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+5. Install the package in development mode:
+   ```bash
+   pip install -e .
+   ```
+
+### Running Tests
+
+We use pytest for testing:
+
+```bash
+# Run all tests
+pytest
+
+# Run tests with coverage
+pytest --cov=src
+
+# Run specific tests
+pytest tests/test_downloader.py
+```
+
+## Development Workflow
+
+### Branching Strategy
+
+We follow a simplified Git flow:
+
+- `main`: Stable production-ready code
+- `develop`: Development branch for integrating features
+- `feature/xxx`: Feature branches for new features
+- `bugfix/xxx`: Bugfix branches for fixing issues
+- `release/x.x.x`: Release branches for preparing releases
+
+### Pull Request Process
+
+1. Create a new branch from `develop` for your feature or bugfix
+2. Make your changes, following the coding standards
+3. Write tests for your changes
+4. Ensure all tests pass
+5. Update documentation as needed
+6. Submit a pull request to the `develop` branch
+7. Address review comments
+
+### Commit Guidelines
+
+Please follow these guidelines for commit messages:
+
+- Use the present tense ("Add feature" not "Added feature")
+- Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
+- Limit the first line to 72 characters or less
+- Reference issues and pull requests after the first line
+
+Example:
+```
+Add download queue management API
+
+- Add endpoint for listing download queue
+- Add endpoint for canceling downloads
+- Add tests for queue management
+
+Fixes #123
+```
+
+## Coding Standards
+
+### Python Code Style
+
+We follow PEP 8 and use Black for code formatting:
+
+```bash
+# Format code with Black
+black src tests
+
+# Check code style with flake8
+flake8 src tests
+```
+
+### Documentation
+
+- Document all public modules, classes, methods, and functions
+- Use Google-style docstrings
+- Update README.md and other documentation when adding features
+
+Example docstring:
+```python
+def download_show(pid, options=None):
+    """
+    Download a BBC show using get_iplayer.
+    
+    Args:
+        pid (str): The BBC programme ID to download.
+        options (dict, optional): Additional options to pass to get_iplayer.
+            
+    Returns:
+        dict: A dictionary containing download status and metadata.
+        
+    Raises:
+        DownloadError: If the download fails.
+    """
+```
+
+### Logging
+
+- Use the built-in logging module
+- Log appropriate information at appropriate levels:
+  - DEBUG: Detailed information for debugging
+  - INFO: Confirmation that things are working as expected
+  - WARNING: Something unexpected happened, but the application still works
+  - ERROR: More serious problems that prevent some functionality from working
+  - CRITICAL: Serious errors that prevent the application from working
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+def some_function():
+    logger.debug("Detailed debug information")
+    try:
+        # Some code
+        logger.info("Operation completed successfully")
+    except Exception as e:
+        logger.error(f"Operation failed: {e}", exc_info=True)
+```
+
+## Project Structure
+
+Please maintain the existing project structure:
+
+- `src/`: Source code
+  - `downloader/`: Module for downloading BBC shows
+  - `storage/`: Module for storage management
+  - `transcription/`: Module for transcription
+  - `api/`: API and interface
+  - `dashboard/`: Web dashboard
+  - `utils/`: Utility functions
+- `tests/`: Test files
+- `docs/`: Documentation
+- `config/`: Configuration files
+- `scripts/`: Utility scripts
+- `docker/`: Docker configuration
+
+## Adding New Features
+
+When adding new features:
+
+1. Discuss large changes in an issue first
+2. Write tests for new functionality
+3. Update documentation
+4. Add migration scripts if changing the database schema
+5. Add appropriate logging
+
+## Reporting Issues
+
+When reporting issues:
+
+1. Use the issue template
+2. Include steps to reproduce
+3. Include expected vs. actual behavior
+4. Include version information (OS, Python version, dependencies)
+
+## Releases
+
+We use semantic versioning (MAJOR.MINOR.PATCH):
+
+- MAJOR: Incompatible API changes
+- MINOR: New functionality (backwards-compatible)
+- PATCH: Bug fixes (backwards-compatible)
+
+## License
+
+By contributing to this project, you agree that your contributions will be licensed under the project's MIT license.
