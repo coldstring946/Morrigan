@@ -1,0 +1,369 @@
+# BBC Radio Processor - Setup Guide
+
+This guide will walk you through setting up the BBC Radio Processor system.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- Raspberry Pi 5 (4GB+ RAM) with Raspberry Pi OS (64-bit)
+- Desktop PC with NVIDIA GPU and appropriate drivers
+- NAS device configured and accessible on your network
+- Network connectivity between all devices
+- Basic knowledge of Linux command line
+
+## Part 1: NAS Configuration
+
+### Create Shared Folders
+
+1. Access your NAS administration interface
+2. Create the following shared folders:
+   - `bbc_downloads` - For storing downloaded audio files
+   - `bbc_processed` - For storing processed audio files
+   - `bbc_database` - For the database
+   - `bbc_logs` - For log files
+
+### Create User Account
+
+1. Create a user account (e.g., "bbc-processor")
+2. Give this user read/write access to all the folders created above
+3. Note down the username and password
+
+## Part 2: Raspberry Pi Setup
+
+### Install Operating System
+
+1. Download the Raspberry Pi Imager from https://www.raspberrypi.com/software/
+2. Insert your microSD card into your computer
+3. Open Raspberry Pi Imager
+4. Choose Raspberry Pi OS (64-bit)
+5. Choose your microSD card
+6. Click the gear icon (⚙️) to access advanced options:
+   - Enable SSH
+   - Set username and password
+   - Configure WiFi (if not using ethernet)
+   - Set locale settings
+7. Click "Write" and wait for the process to complete
+8. Insert the microSD card into your Raspberry Pi and power it on
+
+### Install Dependencies
+
+Run the setup script or execute these commands:
+
+```bash
+# Update and upgrade system packages
+sudo apt update
+sudo apt upgrade -y
+
+# Install required packages
+sudo apt install -y \
+    git \
+    python3-pip \
+    python3-venv \
+    perl \
+    libxml-libxml-perl \
+    libcrypt-ssleay-perl \
+    ffmpeg \
+    rtmpdump \
+    atomicparsley \
+    cifs-utils \
+    docker.io \
+    docker-compose
+
+# Enable and start Docker
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker $USER
+
+# Install get_iplayer
+cd /tmp
+git clone https://github.com/get-iplayer/get_iplayer.git
+cd get_iplayer
+sudo cp get_iplayer /usr/local/bin/
+sudo chmod +x /usr/local/bin/get_iplayer
+cd ~
+rm -rf /tmp/get_iplayer
+```
+
+### Mount NAS Shares
+
+1. Create the mount points:
+
+```bash
+sudo mkdir -p /mnt/nas/downloads
+sudo mkdir -p /mnt/nas/processed
+sudo mkdir -p /mnt/nas/database
+sudo mkdir -p /mnt/nas/logs
+```
+
+2. Edit `/etc/fstab` to auto-mount the shares on boot:
+
+```bash
+sudo nano /etc/fstab
+```
+
+3. Add these lines (replace with your NAS details):
+
+```
+//YOUR_NAS_IP/bbc_downloads /mnt/nas/downloads cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_processed /mnt/nas/processed cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_database /mnt/nas/database cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_logs /mnt/nas/logs cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+```
+
+4. Mount all shares:
+
+```bash
+sudo mount -a
+```
+
+5. Verify the mounts:
+
+```bash
+df -h | grep nas
+```
+
+## Part 3: Desktop PC Setup
+
+### Install Dependencies
+
+Run the setup script or execute these commands:
+
+```bash
+# Update system packages
+sudo apt update
+sudo apt upgrade -y
+
+# Install system dependencies
+sudo apt install -y \
+    git \
+    python3-pip \
+    python3-venv \
+    ffmpeg \
+    cifs-utils \
+    nvidia-cuda-toolkit
+
+# Install PyTorch with CUDA support
+pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu118
+
+# Create Python virtual environment
+python3 -m venv ~/bbc-venv
+source ~/bbc-venv/bin/activate
+
+# Install Whisper and other dependencies
+pip install -U openai-whisper
+pip install pyannote.audio
+pip install psutil pandas sqlalchemy psycopg2-binary
+```
+
+### Mount NAS Shares
+
+1. Create the mount points:
+
+```bash
+sudo mkdir -p /mnt/nas/downloads
+sudo mkdir -p /mnt/nas/processed
+sudo mkdir -p /mnt/nas/database
+sudo mkdir -p /mnt/nas/logs
+```
+
+2. Edit `/etc/fstab` to auto-mount the shares on boot:
+
+```bash
+sudo nano /etc/fstab
+```
+
+3. Add these lines (replace with your NAS details):
+
+```
+//YOUR_NAS_IP/bbc_downloads /mnt/nas/downloads cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_processed /mnt/nas/processed cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_database /mnt/nas/database cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_logs /mnt/nas/logs cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+```
+
+4. Mount all shares:
+
+```bash
+sudo mount -a
+```
+
+5. Verify the mounts:
+
+```bash
+df -h | grep nas
+```
+
+6. Verify NVIDIA GPU and CUDA are working:
+
+```bash
+nvidia-smi
+nvcc --version
+```
+
+## Part 4: Application Setup
+
+### Clone the Repository
+
+On both the Raspberry Pi and Desktop PC:
+
+```bash
+git clone https://github.com/yourusername/bbc-radio-processor.git
+cd bbc-radio-processor
+```
+
+### Configure the Application
+
+1. Copy the example configuration:
+
+```bash
+cp config/config.yaml.example config/config.yaml
+```
+
+2. Edit the configuration file:
+
+```bash
+nano config/config.yaml
+```
+
+3. Update these settings:
+
+```yaml
+# Network Configuration
+network:
+  nas_ip: "YOUR_NAS_IP"
+  nas_mount: "/mnt/nas"
+  transcription_service_url: "http://YOUR_DESKTOP_PC_IP:5000"
+  api_port: 8000
+  dashboard_port: 8501
+
+# Database Configuration
+database:
+  type: "sqlite"  # or "postgresql"
+  path: "/mnt/nas/database"
+  name: "bbc_radio.db"
+  # For PostgreSQL:
+  # host: "YOUR_DB_HOST"
+  # port: 5432
+  # user: "bbc_user"
+  # password: "YOUR_PASSWORD"
+
+# Downloader Configuration
+downloader:
+  download_path: "/mnt/nas/downloads"
+  get_iplayer_options:
+    output: "/mnt/nas/downloads"
+    type: "radio"
+    metadata: true
+    subtitles: true
+
+# Transcription Configuration
+transcription:
+  input_path: "/mnt/nas/downloads"
+  output_path: "/mnt/nas/processed"
+  model: "medium"  # Options: tiny, base, small, medium, large
+  language: "en"
+  device: "cuda"  # Use "cpu" if no GPU available
+  batch_size: 16
+  threads: 4
+
+# Logging Configuration
+logging:
+  log_path: "/mnt/nas/logs"
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+```
+
+### Start the Services
+
+#### On Raspberry Pi:
+
+```bash
+# Using Docker Compose
+cd docker
+docker-compose up -d downloader api dashboard
+```
+
+#### On Desktop PC:
+
+```bash
+# Start the transcription worker
+source ~/bbc-venv/bin/activate
+cd bbc-radio-processor
+python src/transcription/worker.py --config config/config.yaml
+```
+
+### Create Systemd Service for Transcription Worker
+
+On Desktop PC:
+
+1. Create a service file:
+
+```bash
+sudo nano /etc/systemd/system/bbc-transcription.service
+```
+
+2. Add this content (adjust paths as needed):
+
+```
+[Unit]
+Description=BBC Radio Transcription Worker
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/bbc-radio-processor
+ExecStart=/home/YOUR_USERNAME/bbc-venv/bin/python src/transcription/worker.py --config config/config.yaml
+Restart=on-failure
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. Enable and start the service:
+
+```bash
+sudo systemctl enable bbc-transcription
+sudo systemctl start bbc-transcription
+```
+
+## Part 5: Verification
+
+### Check Services
+
+On Raspberry Pi:
+
+```bash
+# Check Docker containers
+docker ps
+
+# Check logs
+docker logs bbc-radio-downloader
+docker logs bbc-radio-api
+docker logs bbc-radio-dashboard
+```
+
+On Desktop PC:
+
+```bash
+# Check transcription service
+sudo systemctl status bbc-transcription
+
+# Check logs
+tail -f /mnt/nas/logs/transcription.log
+```
+
+### Access the Dashboard
+
+Open a web browser and navigate to:
+```
+http://YOUR_RASPBERRY_PI_IP:8501
+```
+
+### Test the System
+
+1. Use the dashboard to search for a BBC radio show
+2. Download a show
+3. Monitor the transcription progress
+4. View the completed transcription
