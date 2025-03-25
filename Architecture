@@ -1,0 +1,187 @@
+# BBC Radio Processor - System Architecture
+
+This document describes the overall architecture of the BBC Radio Processor system.
+
+## System Overview
+
+The BBC Radio Processor is a distributed system that runs on multiple devices:
+
+1. **Raspberry Pi**: Acts as the central coordinator and handles downloading
+2. **Desktop PC**: Provides GPU acceleration for transcription
+3. **NAS**: Provides shared storage for all components
+
+The system is designed to be modular, with clear separation between components.
+
+## Component Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│   Raspberry Pi  │     │    Desktop PC    │     │        NAS       │
+│                 │     │                  │     │                  │
+│  ┌───────────┐  │     │  ┌────────────┐  │     │  ┌────────────┐  │
+│  │ Downloader│  │     │  │Transcription│ │     │  │   Audio    │  │
+│  │  Module   │◄─┼─────┼──┤   Worker   │◄┼─────┼─►│   Files    │  │
+│  └───────────┘  │     │  └────────────┘  │     │  └────────────┘  │
+│        │        │     │                  │     │        ▲         │
+│        ▼        │     │                  │     │        │         │
+│  ┌───────────┐  │     │                  │     │  ┌────────────┐  │
+│  │ Database  │◄─┼─────┼──────────────────┼─────┼─►│Transcription│ │
+│  │  Module   │  │     │                  │     │  │   Files    │  │
+│  └───────────┘  │     │                  │     │  └────────────┘  │
+│        │        │     │                  │     │                  │
+│        ▼        │     │                  │     │  ┌────────────┐  │
+│  ┌───────────┐  │     │                  │     │  │            │  │
+│  │ Dashboard │◄─┼─────┼──────────────────┼─────┼─►│  Database  │  │
+│  │  Module   │  │     │                  │     │  │            │  │
+│  └───────────┘  │     │                  │     │  └────────────┘  │
+└─────────────────┘     └──────────────────┘     └──────────────────┘
+```
+
+## Module Descriptions
+
+### 1. Downloader Module
+
+The Downloader Module is responsible for:
+- Discovering BBC radio shows
+- Downloading audio content
+- Extracting metadata
+- Scheduling downloads
+
+Key components:
+- `bbc_api.py`: Interacts with BBC APIs to discover content
+- `get_iplayer.py`: Wrapper around the get_iplayer tool for downloading
+- `metadata.py`: Extracts and processes show metadata
+
+### 2. Storage Module
+
+The Storage Module manages:
+- Audio file storage
+- Transcription file storage
+- Database operations
+- File organization and backup
+
+Key components:
+- `database.py`: Database operations and schema management
+- `file_manager.py`: File system operations and organization
+
+Database Schema:
+```
+Shows Table:
+- id: Primary key
+- title: Show title
+- description: Show description
+- episode: Episode number
+- broadcast_date: Original broadcast date
+- duration: Duration in seconds
+- download_path: Path to audio file
+- status: Download/processing status
+- metadata: JSON metadata blob
+
+Transcriptions Table:
+- id: Primary key
+- show_id: Foreign key to Shows table
+- path: Path to transcription file
+- format: Format of transcription (txt, json, etc.)
+- created_at: Creation timestamp
+- word_count: Number of words in transcription
+- speakers: Number of identified speakers
+```
+
+### 3. Transcription Module
+
+The Transcription Module handles:
+- Audio preprocessing
+- Speech-to-text transcription
+- Speaker diarization (optional)
+- Transcription formatting
+
+Key components:
+- `whisper_api.py`: Interface to the Whisper transcription system
+- `worker.py`: Long-running worker process for GPU-based transcription
+
+### 4. API/Interface Module
+
+The API/Interface Module provides:
+- REST API for system control
+- Web dashboard for monitoring and management
+- Status reporting
+- Search functionality
+
+Key components:
+- `routes.py`: API endpoint definitions
+- `server.py`: API server implementation
+- `app.py`: Streamlit dashboard application
+
+## Data Flow
+
+1. The Downloader Module discovers and downloads shows to the NAS
+2. The Database Module records metadata about the downloaded shows
+3. The Transcription Worker on the Desktop PC polls for new shows
+4. The Transcription Worker processes shows and stores transcriptions on the NAS
+5. The Dashboard provides a UI for viewing and searching shows and transcriptions
+
+## Storage Structure
+
+The NAS storage is organized as follows:
+
+```
+/bbc_downloads/         # Raw downloaded audio files
+  /show_name_1/
+    episode_1.mp3
+    episode_2.mp3
+  /show_name_2/
+    ...
+
+/bbc_processed/         # Processed transcriptions
+  /show_name_1/
+    episode_1.json      # JSON format with timestamps
+    episode_1.txt       # Plain text format
+  /show_name_2/
+    ...
+
+/bbc_database/          # Database files
+  bbc_radio.db          # SQLite database (or PostgreSQL data)
+
+/bbc_logs/              # Log files
+  downloader.log
+  transcription.log
+  api.log
+  dashboard.log
+```
+
+## Communication
+
+Components communicate through:
+1. **Database**: Shared database on the NAS
+2. **File System**: Shared directories on the NAS
+3. **REST API**: HTTP-based API for control and monitoring
+
+## Deployment Model
+
+The system is deployed using Docker containers:
+
+```
+Raspberry Pi:
+- downloader-service: Container for the downloader module
+- api-service: Container for the REST API
+- dashboard: Container for the Streamlit dashboard
+
+Desktop PC:
+- transcription-worker: Native Python application (needs GPU access)
+```
+
+## Scaling Considerations
+
+The system is designed to scale in several ways:
+
+1. **Horizontal Scaling**: Multiple transcription workers can run on different machines
+2. **Vertical Scaling**: Faster GPU can improve transcription throughput
+3. **Storage Scaling**: NAS storage can be expanded as needed
+
+## Future Considerations for LLM Integration
+
+The architecture is designed with future LLM processing in mind:
+
+1. **Transcription Format**: Transcriptions are stored in formats suitable for LLM ingestion
+2. **Metadata Structure**: Show metadata is structured to facilitate LLM analysis
+3. **Extensible Pipeline**: The system can be extended with an LLM processing module
