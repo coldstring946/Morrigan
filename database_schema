@@ -1,0 +1,257 @@
+# BBC Radio Processor - Database Schema
+
+This document describes the database schema for the BBC Radio Processor system. The schema is designed to be compatible with both SQLite and PostgreSQL.
+
+## Overview
+
+The database consists of several tables:
+- `shows`: Stores information about BBC radio shows
+- `transcriptions`: Stores information about transcribed content
+- `tasks`: Tracks download and transcription tasks
+- `settings`: Stores system configuration settings
+
+## Tables
+
+### Shows Table
+
+Stores metadata about BBC radio shows.
+
+```sql
+CREATE TABLE shows (
+    id SERIAL PRIMARY KEY,
+    pid VARCHAR(20) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    episode VARCHAR(255),
+    broadcast_date TIMESTAMP,
+    duration INTEGER,
+    download_path VARCHAR(512),
+    status VARCHAR(20) NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_shows_pid ON shows(pid);
+CREATE INDEX idx_shows_status ON shows(status);
+CREATE INDEX idx_shows_broadcast_date ON shows(broadcast_date);
+```
+
+Fields:
+- `id`: Unique identifier
+- `pid`: BBC programme ID
+- `title`: Show title
+- `description`: Show description
+- `episode`: Episode name or number
+- `broadcast_date`: Original broadcast date and time
+- `duration`: Duration in seconds
+- `download_path`: Path to the downloaded audio file
+- `status`: Current status (pending, downloading, downloaded, processing, transcribed, error)
+- `metadata`: Additional metadata as JSON
+- `created_at`: Record creation timestamp
+- `updated_at`: Record update timestamp
+
+### Transcriptions Table
+
+Stores information about transcriptions of shows.
+
+```sql
+CREATE TABLE transcriptions (
+    id SERIAL PRIMARY KEY,
+    show_id INTEGER NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+    path VARCHAR(512) NOT NULL,
+    format VARCHAR(20) NOT NULL,
+    word_count INTEGER,
+    speakers INTEGER,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(show_id, format)
+);
+
+CREATE INDEX idx_transcriptions_show_id ON transcriptions(show_id);
+```
+
+Fields:
+- `id`: Unique identifier
+- `show_id`: Reference to the shows table
+- `path`: Path to the transcription file
+- `format`: Format of the transcription (txt, json, srt)
+- `word_count`: Number of words in the transcription
+- `speakers`: Number of speakers identified in the transcription
+- `created_at`: Record creation timestamp
+- `updated_at`: Record update timestamp
+
+### Tasks Table
+
+Tracks tasks such as downloads and transcriptions.
+
+```sql
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    task_id VARCHAR(50) NOT NULL UNIQUE,
+    task_type VARCHAR(20) NOT NULL,
+    show_id INTEGER REFERENCES shows(id) ON DELETE SET NULL,
+    status VARCHAR(20) NOT NULL,
+    progress FLOAT,
+    result JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_tasks_task_id ON tasks(task_id);
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_tasks_show_id ON tasks(show_id);
+```
+
+Fields:
+- `id`: Unique identifier
+- `task_id`: Unique task identifier
+- `task_type`: Type of task (download, transcribe)
+- `show_id`: Reference to the shows table
+- `status`: Current status (pending, in_progress, completed, error, cancelled)
+- `progress`: Percentage progress (0-100)
+- `result`: Task result or error information as JSON
+- `created_at`: Record creation timestamp
+- `updated_at`: Record update timestamp
+
+### Settings Table
+
+Stores system configuration settings.
+
+```sql
+CREATE TABLE settings (
+    key VARCHAR(50) PRIMARY KEY,
+    value JSONB NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Fields:
+- `key`: Setting key
+- `value`: Setting value as JSON
+- `description`: Description of the setting
+- `created_at`: Record creation timestamp
+- `updated_at`: Record update timestamp
+
+## Example Queries
+
+### Get Shows with Transcriptions
+
+```sql
+SELECT 
+    s.id,
+    s.title,
+    s.episode,
+    s.broadcast_date,
+    s.status,
+    t.id AS transcription_id,
+    t.format,
+    t.word_count
+FROM 
+    shows s
+LEFT JOIN 
+    transcriptions t ON s.id = t.show_id
+WHERE 
+    s.status = 'transcribed'
+ORDER BY 
+    s.broadcast_date DESC;
+```
+
+### Get Download Queue
+
+```sql
+SELECT 
+    t.task_id,
+    t.status,
+    t.progress,
+    s.id AS show_id,
+    s.title,
+    s.pid
+FROM 
+    tasks t
+JOIN 
+    shows s ON t.show_id = s.id
+WHERE 
+    t.task_type = 'download'
+    AND t.status IN ('pending', 'in_progress')
+ORDER BY 
+    t.created_at ASC;
+```
+
+### Search Shows by Content
+
+This requires full-text search capabilities. In PostgreSQL:
+
+```sql
+-- Create a function to access transcription content
+CREATE FUNCTION transcription_content(show_id INTEGER) RETURNS TEXT AS $$
+DECLARE
+    content TEXT;
+BEGIN
+    -- This is a simplified example; in practice, you'd need to read from the file system
+    SELECT t.path INTO content FROM transcriptions t WHERE t.show_id = show_id LIMIT 1;
+    RETURN content;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a view for searching
+CREATE VIEW searchable_shows AS
+SELECT 
+    s.id,
+    s.title,
+    s.description,
+    s.episode,
+    transcription_content(s.id) AS content
+FROM 
+    shows s
+WHERE 
+    s.status = 'transcribed';
+
+-- Then search with:
+SELECT * FROM searchable_shows 
+WHERE 
+    to_tsvector('english', title || ' ' || description || ' ' || content) @@ to_tsquery('english', 'search_term');
+```
+
+In SQLite, you would use the FTS5 extension for similar functionality.
+
+## Database Migration
+
+When setting up the system for the first time or upgrading to a new schema version, use database migrations to ensure consistency. Example using Alembic with SQLAlchemy:
+
+```python
+"""
+Migration script for initial database setup
+"""
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
+
+# For SQLite compatibility
+JSONB_Type = sa.JSON().with_variant(JSONB, 'postgresql')
+
+def upgrade():
+    # Create shows table
+    op.create_table(
+        'shows',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('pid', sa.String(20), nullable=False),
+        sa.Column('title', sa.String(255), nullable=False),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('episode', sa.String(255), nullable=True),
+        sa.Column('broadcast_date', sa.DateTime(), nullable=True),
+        sa.Column('duration', sa.Integer(), nullable=True),
+        sa.Column('download_path', sa.String(512), nullable=True),
+        sa.Column('status', sa.String(20), nullable=False),
+        sa.Column('metadata', JSONB_Type, nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False, 
+                  server_default=sa.text('CURRENT_TIMESTAMP')),
+        sa.Column('updated_at', sa.DateTime(), nullable=False,
+                  server_default=sa.text('CURRENT_TIMESTAMP')),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('pid')
+    )
+    
+    # Add other tables...
