@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  downloader:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pi
+    container_name: bbc-radio-downloader
+    restart: unless-stopped
+    volumes:
+      - ${NAS_MOUNT_PATH:-/mnt/nas}:/mnt/nas
+      - ../config:/app/config
+    command: python -m src.main --service downloader
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    networks:
+      - bbc-network
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pi
+    container_name: bbc-radio-api
+    restart: unless-stopped
+    volumes:
+      - ${NAS_MOUNT_PATH:-/mnt/nas}:/mnt/nas
+      - ../config:/app/config
+    command: python -m src.api.server
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    networks:
+      - bbc-network
+    depends_on:
+      - downloader
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: bbc-radio-dashboard
+    restart: unless-stopped
+    volumes:
+      - ${NAS_MOUNT_PATH:-/mnt/nas}:/mnt/nas
+      - ../config:/app/config
+    command: streamlit run src/dashboard/app.py
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    networks:
+      - bbc-network
+    depends_on:
+      - api
+
+networks:
+  bbc-network:
+    driver: bridge
