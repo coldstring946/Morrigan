@@ -1,0 +1,490 @@
+# BBC Radio Processor - API Documentation
+
+This document describes the REST API provided by the BBC Radio Processor system.
+
+## Base URL
+
+All API endpoints are relative to:
+
+```
+http://<raspberry-pi-ip>:8000/api/v1
+```
+
+## Authentication
+
+Currently, the API does not require authentication when accessed within your local network. For future versions, authentication will be implemented using JWT tokens.
+
+## Endpoints
+
+### Shows
+
+#### List Shows
+
+```
+GET /shows
+```
+
+Query parameters:
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20)
+- `status`: Filter by status (e.g., "pending", "downloaded", "transcribed")
+- `search`: Search term to filter by title or description
+- `sort`: Field to sort by (e.g., "broadcast_date", "title")
+- `order`: Sort order ("asc" or "desc")
+
+Response:
+```json
+{
+  "total": 156,
+  "page": 1,
+  "limit": 20,
+  "shows": [
+    {
+      "id": 1234,
+      "title": "The Archers",
+      "description": "Contemporary drama in a rural setting",
+      "episode": "Episode 42",
+      "broadcast_date": "2025-03-15T19:15:00Z",
+      "duration": 1800,
+      "download_path": "/mnt/nas/downloads/The_Archers/The_Archers_2025-03-15.mp3",
+      "status": "transcribed",
+      "metadata": {
+        "channel": "BBC Radio 4",
+        "pid": "m123456",
+        "categories": ["Drama", "Rural"]
+      },
+      "created_at": "2025-03-15T20:30:00Z",
+      "updated_at": "2025-03-15T21:00:00Z"
+    },
+    // more shows...
+  ]
+}
+```
+
+#### Get Show
+
+```
+GET /shows/{id}
+```
+
+Response:
+```json
+{
+  "id": 1234,
+  "title": "The Archers",
+  "description": "Contemporary drama in a rural setting",
+  "episode": "Episode 42",
+  "broadcast_date": "2025-03-15T19:15:00Z",
+  "duration": 1800,
+  "download_path": "/mnt/nas/downloads/The_Archers/The_Archers_2025-03-15.mp3",
+  "status": "transcribed",
+  "metadata": {
+    "channel": "BBC Radio 4",
+    "pid": "m123456",
+    "categories": ["Drama", "Rural"]
+  },
+  "transcription": {
+    "id": 5678,
+    "path": "/mnt/nas/processed/The_Archers/The_Archers_2025-03-15.json",
+    "format": "json",
+    "word_count": 2500,
+    "speakers": 5,
+    "created_at": "2025-03-15T21:00:00Z"
+  },
+  "created_at": "2025-03-15T20:30:00Z",
+  "updated_at": "2025-03-15T21:00:00Z"
+}
+```
+
+#### Search Shows
+
+```
+GET /shows/search
+```
+
+Query parameters:
+- `q`: Search query
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20)
+- `start_date`: Filter shows broadcast after this date (ISO format)
+- `end_date`: Filter shows broadcast before this date (ISO format)
+- `categories`: Comma-separated list of categories to filter by
+
+Response: Same format as List Shows.
+
+#### Download Show
+
+```
+POST /shows/download
+```
+
+Request:
+```json
+{
+  "pid": "m123456",
+  "options": {
+    "quality": "best",
+    "subtitles": true
+  }
+}
+```
+
+Response:
+```json
+{
+  "id": 1235,
+  "title": "The Archers",
+  "status": "pending",
+  "message": "Download initiated",
+  "task_id": "task-567890"
+}
+```
+
+### Transcriptions
+
+#### List Transcriptions
+
+```
+GET /transcriptions
+```
+
+Query parameters:
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20)
+- `show_id`: Filter by show ID
+- `sort`: Field to sort by
+- `order`: Sort order ("asc" or "desc")
+
+Response:
+```json
+{
+  "total": 120,
+  "page": 1,
+  "limit": 20,
+  "transcriptions": [
+    {
+      "id": 5678,
+      "show_id": 1234,
+      "show_title": "The Archers",
+      "path": "/mnt/nas/processed/The_Archers/The_Archers_2025-03-15.json",
+      "format": "json",
+      "word_count": 2500,
+      "speakers": 5,
+      "created_at": "2025-03-15T21:00:00Z"
+    },
+    // more transcriptions...
+  ]
+}
+```
+
+#### Get Transcription
+
+```
+GET /transcriptions/{id}
+```
+
+Response:
+```json
+{
+  "id": 5678,
+  "show_id": 1234,
+  "show_title": "The Archers",
+  "path": "/mnt/nas/processed/The_Archers/The_Archers_2025-03-15.json",
+  "format": "json",
+  "word_count": 2500,
+  "speakers": 5,
+  "created_at": "2025-03-15T21:00:00Z",
+  "content": {
+    "segments": [
+      {
+        "start": 0.0,
+        "end": 5.2,
+        "speaker": "Speaker 1",
+        "text": "Welcome to The Archers."
+      },
+      {
+        "start": 5.3,
+        "end": 10.1,
+        "speaker": "Speaker 2",
+        "text": "Today's episode features the village fete."
+      },
+      // more segments...
+    ]
+  }
+}
+```
+
+#### Get Transcription Content
+
+```
+GET /transcriptions/{id}/content
+```
+
+Query parameters:
+- `format`: Format to return ("json", "txt", "srt") (default: "json")
+
+Response for format=json:
+```json
+{
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 5.2,
+      "speaker": "Speaker 1",
+      "text": "Welcome to The Archers."
+    },
+    {
+      "start": 5.3,
+      "end": 10.1,
+      "speaker": "Speaker 2",
+      "text": "Today's episode features the village fete."
+    },
+    // more segments...
+  ]
+}
+```
+
+Response for format=txt:
+```
+[00:00:00] Speaker 1: Welcome to The Archers.
+[00:00:05] Speaker 2: Today's episode features the village fete.
+...
+```
+
+#### Re-Transcribe Show
+
+```
+POST /transcriptions/process
+```
+
+Request:
+```json
+{
+  "show_id": 1234,
+  "options": {
+    "model": "medium",
+    "language": "en",
+    "diarize": true
+  }
+}
+```
+
+Response:
+```json
+{
+  "message": "Transcription initiated",
+  "task_id": "task-678901",
+  "show_id": 1234
+}
+```
+
+### System Management
+
+#### System Status
+
+```
+GET /system/status
+```
+
+Response:
+```json
+{
+  "version": "1.0.0",
+  "uptime": 345600,
+  "storage": {
+    "total": 1000000000000,
+    "used": 250000000000,
+    "free": 750000000000
+  },
+  "downloads": {
+    "active": 2,
+    "queued": 5,
+    "completed_today": 10
+  },
+  "transcriptions": {
+    "active": 1,
+    "queued": 3,
+    "completed_today": 8
+  },
+  "services": {
+    "downloader": "running",
+    "api": "running",
+    "dashboard": "running",
+    "transcription_worker": "running"
+  }
+}
+```
+
+#### Queue Management
+
+```
+GET /system/queue
+```
+
+Response:
+```json
+{
+  "download_queue": [
+    {
+      "task_id": "task-567890",
+      "show_id": 1235,
+      "title": "The News Quiz",
+      "status": "in_progress",
+      "progress": 45.2,
+      "created_at": "2025-03-16T14:30:00Z"
+    },
+    // more download tasks...
+  ],
+  "transcription_queue": [
+    {
+      "task_id": "task-678901",
+      "show_id": 1234,
+      "title": "The Archers",
+      "status": "queued",
+      "created_at": "2025-03-16T14:40:00Z"
+    },
+    // more transcription tasks...
+  ]
+}
+```
+
+#### Cancel Task
+
+```
+POST /system/queue/cancel
+```
+
+Request:
+```json
+{
+  "task_id": "task-567890"
+}
+```
+
+Response:
+```json
+{
+  "message": "Task cancelled",
+  "task_id": "task-567890"
+}
+```
+
+#### Clear Queue
+
+```
+POST /system/queue/clear
+```
+
+Request:
+```json
+{
+  "queue_type": "download"  // or "transcription" or "all"
+}
+```
+
+Response:
+```json
+{
+  "message": "Queue cleared",
+  "queue_type": "download",
+  "tasks_cancelled": 5
+}
+```
+
+### Discovery
+
+#### Search BBC Shows
+
+```
+GET /discovery/search
+```
+
+Query parameters:
+- `q`: Search query
+- `category`: Category filter (e.g., "comedy", "drama")
+- `channel`: Channel filter (e.g., "radio4", "radio3")
+- `limit`: Maximum number of results to return
+
+Response:
+```json
+{
+  "total": 25,
+  "shows": [
+    {
+      "pid": "m123456",
+      "title": "The Archers",
+      "description": "Contemporary drama in a rural setting",
+      "channel": "BBC Radio 4",
+      "episodes": 42,
+      "latest_episode": "2025-03-15T19:15:00Z"
+    },
+    // more shows...
+  ]
+}
+```
+
+#### Get BBC Show Episodes
+
+```
+GET /discovery/show/{pid}/episodes
+```
+
+Query parameters:
+- `limit`: Maximum number of results to return
+
+Response:
+```json
+{
+  "pid": "m123456",
+  "title": "The Archers",
+  "episodes": [
+    {
+      "pid": "m789012",
+      "title": "Episode 42",
+      "description": "Rob faces a difficult decision.",
+      "broadcast_date": "2025-03-15T19:15:00Z",
+      "duration": 1800
+    },
+    // more episodes...
+  ]
+}
+```
+
+## Error Handling
+
+All API endpoints use standard HTTP status codes to indicate success or failure:
+
+- 200: OK
+- 201: Created
+- 400: Bad Request
+- 404: Not Found
+- 500: Internal Server Error
+
+Error responses include a message:
+
+```json
+{
+  "error": "Resource not found",
+  "message": "Show with ID 9999 does not exist",
+  "status": 404
+}
+```
+
+## Pagination
+
+List endpoints support pagination using the `page` and `limit` parameters. Responses include pagination metadata:
+
+```json
+{
+  "total": 156,     // Total number of items
+  "page": 1,        // Current page
+  "limit": 20,      // Items per page
+  "pages": 8,       // Total pages
+  "next": "/api/v1/shows?page=2&limit=20",  // URL for next page
+  "prev": null      // URL for previous page (null if on first page)
+}
+```
+
+## Versioning
+
+The API uses URL versioning (/api/v1/). Future versions may use different endpoints or return different response formats.
