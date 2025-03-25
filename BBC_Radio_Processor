@@ -1,0 +1,81 @@
+# BBC Radio Processor
+
+A system for downloading BBC radio shows, transcribing them, and storing them in a format suitable for analysis.
+
+## Project Structure
+
+```
+bbc-radio-processor/
+├── .github/                    # GitHub workflows and templates
+│   ├── workflows/              # CI/CD workflows
+│   │   └── ci.yml              # Continuous integration workflow
+│   └── ISSUE_TEMPLATE/         # Issue templates
+├── docs/                       # Documentation
+│   ├── architecture.md         # System architecture documentation
+│   ├── api.md                  # API documentation
+│   ├── setup.md                # Setup instructions
+│   └── usage.md                # Usage instructions
+├── src/                        # Source code
+│   ├── downloader/             # Module for downloading BBC shows
+│   │   ├── __init__.py
+│   │   ├── bbc_api.py          # BBC API interaction
+│   │   ├── get_iplayer.py      # get_iplayer wrapper
+│   │   └── metadata.py         # Metadata extraction
+│   ├── storage/                # Module for storage management
+│   │   ├── __init__.py
+│   │   ├── database.py         # Database operations
+│   │   └── file_manager.py     # File system operations
+│   ├── transcription/          # Module for transcription
+│   │   ├── __init__.py
+│   │   ├── whisper_api.py      # Whisper API interaction
+│   │   └── worker.py           # Worker for processing transcriptions
+│   ├── api/                    # API and interface
+│   │   ├── __init__.py
+│   │   ├── routes.py           # API routes
+│   │   └── server.py           # API server
+│   ├── dashboard/              # Web dashboard
+│   │   ├── __init__.py
+│   │   ├── app.py              # Streamlit app
+│   │   └── components/         # Dashboard components
+│   ├── utils/                  # Utility functions
+│   │   ├── __init__.py
+│   │   ├── config.py           # Configuration management
+│   │   └── logging.py          # Logging utilities
+│   └── main.py                 # Main application entry point
+├── config/                     # Configuration files
+│   ├── config.yaml.example     # Example configuration
+│   └── logging.yaml            # Logging configuration
+├── scripts/                    # Utility scripts
+│   ├── setup_pi.sh             # Raspberry Pi setup script
+│   ├── setup_desktop.sh        # Desktop PC setup script
+│   └── mount_nas.sh            # NAS mounting script
+├── docker/                     # Docker configuration
+│   ├── Dockerfile.pi           # Dockerfile for Raspberry Pi service
+│   ├── Dockerfile.dashboard    # Dockerfile for dashboard
+│   └── docker-compose.yml      # Docker Compose configuration
+├── tests/                      # Test files
+│   ├── test_downloader.py      # Tests for downloader module
+│   ├── test_storage.py         # Tests for storage module
+│   └── test_transcription.py   # Tests for transcription module
+├── .gitignore                  # Git ignore file
+├── requirements.txt            # Python dependencies
+├── setup.py                    # Package setup file
+└── README.md                   # Project README
+```
+
+## Module Overview
+
+### Downloader Module
+Responsible for discovering and downloading BBC radio shows.
+
+### Storage Module
+Manages the storage of audio files, transcriptions, and metadata, with consideration for future LLM processing.
+
+### Transcription Module
+Handles the conversion of audio to text using Whisper or similar technology.
+
+### API/Interface Module
+Provides a REST API and web dashboard for controlling and monitoring the system.
+
+### Utility Functions
+Common utilities used across modules, including configuration and logging.
