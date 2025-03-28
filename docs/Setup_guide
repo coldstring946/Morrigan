@@ -17,7 +17,9 @@ Before starting, ensure you have:
 ### Create Shared Folders
 
 1. Access your NAS administration interface
-2. Create the following shared folders:
+2. Create the following shared folder:
+   - `morrigan` - For storing and processing the files for the BBC radio transcriber.
+3. Create the following subfolders in morrigan:
    - `bbc_downloads` - For storing downloaded audio files
    - `bbc_processed` - For storing processed audio files
    - `bbc_database` - For the database
@@ -95,6 +97,20 @@ sudo mkdir -p /mnt/nas/processed
 sudo mkdir -p /mnt/nas/database
 sudo mkdir -p /mnt/nas/logs
 ```
+1a. Make a credentials file:
+
+```
+sudo nano /etc/smb-credentials-bbc
+```
+add these lines:
+```
+username=bbc-processor
+password=your_password_here
+```
+lock down the file:
+```
+sudo chmod 600 /etc/smb-credentials-bbc
+```
 
 2. Edit `/etc/fstab` to auto-mount the shares on boot:
 
@@ -105,10 +121,10 @@ sudo nano /etc/fstab
 3. Add these lines (replace with your NAS details):
 
 ```
-//YOUR_NAS_IP/bbc_downloads /mnt/nas/downloads cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
-//YOUR_NAS_IP/bbc_processed /mnt/nas/processed cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
-//YOUR_NAS_IP/bbc_database /mnt/nas/database cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
-//YOUR_NAS_IP/bbc_logs /mnt/nas/logs cifs username=bbc-processor,password=YOUR_PASSWORD,vers=3.0,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_downloads /mnt/nas/downloads cifs credentials=/etc/smb-credentials-bbc,vers=3.0,sec=ntlmssp,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_processed /mnt/nas/processed cifs credentials=/etc/smb-credentials-bbc,vers=3.0,sec=ntlmssp,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_database /mnt/nas/database cifs credentials=/etc/smb-credentials-bbc,vers=3.0,sec=ntlmssp,_netdev,x-systemd.automount 0 0
+//YOUR_NAS_IP/bbc_logs /mnt/nas/logs cifs credentials=/etc/smb-credentials-bbc,vers=3.0,sec=ntlmssp,_netdev,x-systemd.automount 0 0
 ```
 
 4. Mount all shares:
